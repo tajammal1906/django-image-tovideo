@@ -17,6 +17,7 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_image_tovideo.settings')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -34,9 +35,10 @@ MEDIA_URL = '/media/'  # This is the URL that will serve media files
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # The actual filesystem location for media files
 # Application definition
 
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'image_to_video.settings')
+
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-
 
 INSTALLED_APPS = [
     'django.contrib.admin',
