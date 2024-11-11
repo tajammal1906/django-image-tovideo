@@ -1,20 +1,17 @@
 import requests
+import os
 import cv2
 import numpy as np
-import os
-from moviepy.editor import ImageSequenceClip
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
+from tempfile import TemporaryDirectory
 
-# Define FastAPI app
 app = FastAPI()
 
-# Define request model
 class ImageUrls(BaseModel):
     urls: List[str]
 
-# Download an image from a URL
 def download_image(url, save_path):
     response = requests.get(url)
     if response.status_code == 200:
@@ -23,35 +20,30 @@ def download_image(url, save_path):
     else:
         raise HTTPException(status_code=400, detail=f"Failed to download image from {url}")
 
-# Endpoint to create a video from image URLs
 @app.post("/create_video/")
 async def create_video(image_urls: ImageUrls):
-    img_folder = "temp_images"
-    os.makedirs(img_folder, exist_ok=True)
-    image_files = []
+    with TemporaryDirectory() as tmp_dir:
+        image_files = []
+        video_path = os.path.join(tmp_dir, "output_video.mp4")
 
-    try:
-        # Download images and save locally
-        for idx, url in enumerate(image_urls.urls):
-            img_path = os.path.join(img_folder, f"image_{idx}.jpg")
-            download_image(url, img_path)
-            image_files.append(img_path)
+        try:
+            for idx, url in enumerate(image_urls.urls):
+                img_path = os.path.join(tmp_dir, f"image_{idx}.jpg")
+                download_image(url, img_path)
+                image_files.append(img_path)
 
-        # Create video
-        video_path = "output_video.mp4"
-        clip = ImageSequenceClip(image_files, fps=1)
-        clip.write_videofile(video_path)
+            # Create video using OpenCV
+            frame = cv2.imread(image_files[0])
+            height, width, _ = frame.shape
+            out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), 1, (width, height))
 
-        # Clean up images
-        for img_file in image_files:
-            os.remove(img_file)
-        os.rmdir(img_folder)
+            for img_file in image_files:
+                frame = cv2.imread(img_file)
+                out.write(frame)
+            out.release()
 
-        return {"video_path": video_path}
-    except Exception as e:
-        # Clean up on error
-        for img_file in image_files:
-            if os.path.exists(img_file):
-                os.remove(img_file)
-        os.rmdir(img_folder)
-        raise HTTPException(status_code=500, detail=str(e))
+            # Return the video path for further handling (e.g., upload to S3)
+            return {"video_path": video_path}
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
