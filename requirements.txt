@@ -1,5 +1,5 @@
 fastapi
 uvicorn
 requests
-moviepy  # Only if absolutely necessary
-opencv-python-headless
+moviepy
+opencv-python
