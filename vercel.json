@@ -26,5 +26,10 @@
       "src": "/(.*)",
       "dest": "image_to_video/wsgi.py"
     }
-  ]
+  ],
+  "functions": {
+    "image_to_video/wsgi.py": {
+      "memory": 1024 
+    }
+  }
 }
