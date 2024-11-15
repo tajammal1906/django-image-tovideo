@@ -2,22 +2,24 @@ import cv2
 import requests
 import numpy as np
 import os
-from django.http import JsonResponse
-from django.conf import settings
-from rest_framework.decorators import api_view
+from flask import Flask, request, jsonify, send_from_directory
+
+app = Flask(__name__)
+
+# Ensure the media directory exists
+MEDIA_DIR = "media"
+if not os.path.exists(MEDIA_DIR):
+    os.makedirs(MEDIA_DIR)
 
 
-@api_view(['POST'])
-def create_video_from_images(request):
+@app.route('/create_video_from_images', methods=['POST'])
+def create_video_from_images():
     # Get the array of image URLs from the POST request
-    image_urls = request.data.get('image_urls', [])
+    data = request.get_json()
+    image_urls = data.get('image_urls', [])
 
     if not image_urls:
-        return JsonResponse({'error': 'No image URLs provided'}, status=400)
-
-    # Ensure the media directory exists
-    if not os.path.exists(settings.MEDIA_ROOT):
-        os.makedirs(settings.MEDIA_ROOT)
+        return jsonify({'error': 'No image URLs provided'}), 400
 
     images = []
     for url in image_urls:
@@ -29,17 +31,15 @@ def create_video_from_images(request):
                 raise Exception(f"Could not decode image from {url}")
             images.append(image)
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
+            return jsonify({'error': str(e)}), 400
 
     if not images:
-        return JsonResponse({'error': 'Failed to load any valid images'}, status=400)
+        return jsonify({'error': 'Failed to load any valid images'}), 400
 
     # Set up video writer
     height, width, layers = images[0].shape
-    # Use H.264 codec instead of mp4v for better compatibility
     fourcc = cv2.VideoWriter_fourcc(*'H264')
-
-    video_filename = os.path.join(settings.MEDIA_ROOT, 'generated_video.mp4')
+    video_filename = os.path.join(MEDIA_DIR, 'generated_video.mp4')
 
     # Write video to file
     video_writer = cv2.VideoWriter(video_filename, fourcc, 2, (width, height))  # 2 FPS
@@ -47,5 +47,13 @@ def create_video_from_images(request):
         video_writer.write(img)
     video_writer.release()
 
-    video_url = settings.MEDIA_URL + 'generated_video.mp4'
-    return JsonResponse({'video_url': video_url})
+    return jsonify({'video_url': f"/media/generated_video.mp4"})
+
+
+@app.route('/media/<filename>', methods=['GET'])
+def serve_media(filename):
+    return send_from_directory(MEDIA_DIR, filename)
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
